@@ -246,6 +246,8 @@
             } else if (event.target.id === 'file-tab' && isScanning) {
                 stopCamera();
             }
+            // Clear search result on tab switch
+            resultElement.textContent = "No code scanned yet.";
         });
     </script>
 </body>
