@@ -3,252 +3,265 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QBarScanner</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>PDF Redactor</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/4.3.1/fabric.min.js"></script>
     <style>
         body {
             background-color: #f8f9fa;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-
-        .scanner-container {
+        #pdf-container {
             position: relative;
-            max-width: 100%;
-            height: 300px;
-            border: 2px solid #007bff;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            height: 70vh;
+            border: 1px solid #ced4da;
+            margin-top: 20px;
+            overflow: auto;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
-
-        #video-input, #canvas {
+        .pdf-page {
+            position: relative;
+            margin-bottom: 10px;
+        }
+        .pdf-render {
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
         }
-
-        .result-container {
-            min-height: 100px;
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            padding: 20px;
+        .redact-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
         }
-
-        .tab-content {
-            background-color: white;
-            border: 1px solid #dee2e6;
-            border-top: none;
-            border-radius: 0 0 0.25rem 0.25rem;
-            padding: 20px;
+        h1 {
+            font-weight: bold;
+            color: #343a40;
         }
-
-        .custom-file-upload {
-            display: inline-block;
-            padding: 6px 12px;
-            cursor: pointer;
-            background-color: #007bff;
-            color: white;
-            border-radius: 4px;
-            margin-right: 15px;
-            transition: background-color 0.3s ease;
-        }
-
-        .custom-file-upload:hover {
-            background-color: #0056b3;
-        }
-
-        #file-upload {
-            display: none;
-        }
-
-        .nav-tabs .nav-link.active {
+        .btn-custom {
             background-color: #007bff;
             color: white;
         }
-
-        .nav-tabs .nav-link {
-            color: #007bff;
-        }
-
-        .btn-primary {
-            background-color: #007bff;
-            border-color: #007bff;
-        }
-
-        .btn-primary:hover {
+        .btn-custom:hover {
             background-color: #0056b3;
-            border-color: #0056b3;
         }
-
-        .btn-danger {
-            background-color: #dc3545;
-            border-color: #dc3545;
-        }
-
-        .btn-danger:hover {
-            background-color: #c82333;
-            border-color: #c82333;
+        .modal-content {
+            padding: 20px;
         }
     </style>
 </head>
 <body>
-    <div class="container my-5">
-        <h1 class="text-center mb-4">QBarScanner</h1>
-        <div class="row justify-content-center">
-            <div class="col-12 col-md-8">
-                <ul class="nav nav-tabs" id="scannerTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="camera-tab" data-bs-toggle="tab" data-bs-target="#camera" type="button" role="tab">
-                            <i class="fas fa-camera"></i> Camera Scan
+    <div class="container mt-5">
+        <h1 class="text-center">PDF Redactor</h1>
+        <button class="btn btn-info" data-toggle="modal" data-target="#instructionsModal">Instructions</button>
+        <input type="file" id="file-input" accept=".pdf" class="form-control mt-3" />
+        <div id="pdf-container"></div>
+        <button id="save-btn" class="btn btn-custom mt-3" disabled>Save Redacted PDF</button>
+        <a id="download-btn" class="btn btn-success mt-3" download="redacted.pdf" disabled>Download Redacted PDF</a>
+
+        <!-- Instructions Modal -->
+        <div class="modal fade" id="instructionsModal" tabindex="-1" role="dialog" aria-labelledby="instructionsModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="instructionsModalLabel">Instructions</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
                         </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="file-tab" data-bs-toggle="tab" data-bs-target="#file" type="button" role="tab">
-                            <i class="fas fa-file-upload"></i> File Upload
-                        </button>
-                    </li>
-                </ul>
-                <div class="tab-content" id="scannerTabsContent">
-                    <div class="tab-pane fade show active" id="camera" role="tabpanel">
-                        <div class="scanner-container mb-3">
-                            <video id="video-input"></video>
-                            <canvas id="canvas" class="d-none"></canvas>
-                        </div>
-                        <div class="d-flex justify-content-between mb-3">
-                            <button id="start-camera" class="btn btn-primary">
-                                <i class="fas fa-play"></i> Start Scan
-                            </button>
-                            <button id="stop-camera" class="btn btn-danger d-none">
-                                <i class="fas fa-stop"></i> Stop Scan
-                            </button>
-                        </div>
                     </div>
-                    <div class="tab-pane fade" id="file" role="tabpanel">
-                        <div class="d-flex align-items-center mb-3">
-                            <label for="file-upload" class="custom-file-upload me-3">
-                                <i class="fas fa-cloud-upload-alt"></i> Choose File
-                            </label>
-                            <button id="scan-button" class="btn btn-primary" disabled>
-                                <i class="fas fa-search"></i> Scan File
-                            </button>
-                        </div>
-                        <input type="file" id="file-upload" accept="image/*">
-                    </div>
-                </div>
-                <div class="result-container card mt-3">
-                    <div class="card-body">
-                        <h5 class="card-title">Scan Result</h5>
-                        <p id="result" class="card-text">No code scanned yet.</p>
+                    <div class="modal-body">
+                        <p>1. Upload your PDF document.</p>
+                        <p>2. Use the mouse to select areas to redact (highlighted in red).</p>
+                        <p>3. Click "Save Redacted PDF" to see your changes and enable download.</p>
+                        <p>4. Download the redacted PDF when ready.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://unpkg.com/@zxing/library@latest"></script>
-    <script src="https://cozmo.github.io/jsQR/jsQR.js"></script>
     <script>
-        const video = document.getElementById('video-input');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const resultElement = document.getElementById('result');
-        const fileInput = document.getElementById('file-upload');
-        const scanButton = document.getElementById('scan-button');
-        const startCameraButton = document.getElementById('start-camera');
-        const stopCameraButton = document.getElementById('stop-camera');
-        let stream;
-        let isScanning = false;
+        window.addEventListener("load", function () {
+            const fileInput = document.getElementById("file-input");
+            const pdfContainer = document.getElementById("pdf-container");
+            const saveBtn = document.getElementById("save-btn");
+            const downloadBtn = document.getElementById("download-btn");
 
-        startCameraButton.addEventListener('click', startCamera);
-        stopCameraButton.addEventListener('click', stopCamera);
+            let pdfDoc = null;
+            let scale = 1.5;
+            const redactions = {};
 
-        function startCamera() {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-                .then(function(str) {
-                    stream = str;
-                    video.srcObject = stream;
-                    video.setAttribute("playsinline", true);
-                    video.play();
-                    startCameraButton.classList.add('d-none');
-                    stopCameraButton.classList.remove('d-none');
-                    isScanning = true;
-                    requestAnimationFrame(tick);
-                })
-                .catch(function(error) {
-                    resultElement.textContent = "Error accessing camera: " + error.message;
+            pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.worker.min.js";
+
+            function renderPage(pageNum) {
+                pdfDoc.getPage(pageNum).then(function (page) {
+                    const viewport = page.getViewport({ scale: scale });
+                    const pageDiv = document.createElement("div");
+                    pageDiv.className = "pdf-page";
+                    pageDiv.style.width = viewport.width + "px";
+                    pageDiv.style.height = viewport.height + "px";
+
+                    const canvas = document.createElement("canvas");
+                    canvas.className = "pdf-render";
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    pageDiv.appendChild(canvas);
+
+                    const fabricCanvas = document.createElement("canvas");
+                    fabricCanvas.className = "redact-canvas";
+                    fabricCanvas.width = viewport.width;
+                    fabricCanvas.height = viewport.height;
+                    pageDiv.appendChild(fabricCanvas);
+
+                    pdfContainer.appendChild(pageDiv);
+
+                    const ctx = canvas.getContext("2d");
+                    const renderTask = page.render({
+                        canvasContext: ctx,
+                        viewport: viewport,
+                    });
+
+                    renderTask.promise.then(function () {
+                        const fabricCanvasObj = new fabric.Canvas(fabricCanvas);
+                        setupRedactionEvents(fabricCanvasObj, pageNum, viewport);
+                    });
                 });
-        }
-
-        function stopCamera() {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
             }
-            video.srcObject = null;
-            startCameraButton.classList.remove('d-none');
-            stopCameraButton.classList.add('d-none');
-            isScanning = false;
-        }
 
-        function tick() {
-            if (video.readyState === video.HAVE_ENOUGH_DATA && isScanning) {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-                const code = jsQR(imageData.data, imageData.width, imageData.height);
-                if (code) {
-                    resultElement.textContent = code.data;
+            function renderAllPages() {
+                for (let i = 1; i <= pdfDoc.numPages; i++) {
+                    renderPage(i);
                 }
             }
-            if (isScanning) {
-                requestAnimationFrame(tick);
-            }
-        }
 
-        fileInput.addEventListener('change', function() {
-            scanButton.disabled = !fileInput.files.length;
-        });
+            fileInput.addEventListener("change", function (e) {
+                const file = e.target.files[0];
+                if (file.type !== "application/pdf") {
+                    console.error("Error: Not a PDF file");
+                    return;
+                }
 
-        scanButton.addEventListener('click', function() {
-            const file = fileInput.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = new Image();
-                    img.src = e.target.result;
-                    img.onload = function() {
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        ctx.drawImage(img, 0, 0);
-                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        const code = jsQR(imageData.data, imageData.width, imageData.height);
-                        if (code) {
-                            resultElement.textContent = code.data;
-                        } else {
-                            resultElement.textContent = "No QR/Barcode found in the uploaded file.";
-                        }
-                    };
+                const fileReader = new FileReader();
+
+                fileReader.onload = function () {
+                    const typedarray = new Uint8Array(this.result);
+                    pdfjsLib.getDocument(typedarray).promise.then(function (pdf) {
+                        pdfDoc = pdf;
+                        renderAllPages();
+                        saveBtn.disabled = false;
+                    });
                 };
-                reader.readAsDataURL(file);
-            }
-        });
 
-        document.getElementById('scannerTabs').addEventListener('shown.bs.tab', function (event) {
-            if (event.target.id === 'camera-tab' && isScanning) {
-                video.play();
-            } else if (event.target.id === 'file-tab' && isScanning) {
-                stopCamera();
+                fileReader.readAsArrayBuffer(file);
+            });
+
+            function setupRedactionEvents(fabricCanvasObj, pageNum, viewport) {
+                let isDrawing = false;
+                let startX, startY;
+                let currentRect = null;
+
+                redactions[pageNum] = redactions[pageNum] || [];
+
+                fabricCanvasObj.on("mouse:down", function (options) {
+                    isDrawing = true;
+                    const pointer = fabricCanvasObj.getPointer(options.e);
+                    startX = pointer.x;
+                    startY = pointer.y;
+
+                    currentRect = new fabric.Rect({
+                        left: startX,
+                        top: startY,
+                        width: 0,
+                        height: 0,
+                        fill: "rgba(255, 0, 0, 0.3)",
+                        selectable: false,
+                        evented: false,
+                    });
+
+                    fabricCanvasObj.add(currentRect);
+                });
+
+                fabricCanvasObj.on("mouse:move", function (options) {
+                    if (!isDrawing) return;
+                    const pointer = fabricCanvasObj.getPointer(options.e);
+
+                    currentRect.set({
+                        left: Math.min(startX, pointer.x),
+                        top: Math.min(startY, pointer.y),
+                        width: Math.abs(pointer.x - startX),
+                        height: Math.abs(pointer.y - startY),
+                    });
+
+                    currentRect.setCoords();
+                    fabricCanvasObj.renderAll();
+                });
+
+                fabricCanvasObj.on("mouse:up", function () {
+                    isDrawing = false;
+
+                    redactions[pageNum].push({
+                        left: (currentRect.left * viewport.width) / fabricCanvasObj.width,
+                        top: (currentRect.top * viewport.height) / fabricCanvasObj.height,
+                        width: (currentRect.width * viewport.width) / fabricCanvasObj.width,
+                        height: (currentRect.height * viewport.height) / fabricCanvasObj.height,
+                    });
+
+                    currentRect.set({ selectable: false, evented: false });
+                    currentRect = null;
+                });
+
+                fabricCanvasObj.on("mouse:wheel", (e) => {
+                    e.e.preventDefault();
+                });
             }
-            // Clear search result on tab switch
-            resultElement.textContent = "No code scanned yet.";
+
+            saveBtn.addEventListener("click", function () {
+                const pdf = new window.jspdf.jsPDF();
+                const pagePromises = [];
+
+                for (let i = 1; i <= pdfDoc.numPages; i++) {
+                    pagePromises.push(
+                        pdfDoc.getPage(i).then(function (page) {
+                            const viewport = page.getViewport({ scale: scale });
+                            const canvas = document.createElement("canvas");
+                            canvas.width = viewport.width;
+                            canvas.height = viewport.height;
+                            const ctx = canvas.getContext("2d");
+
+                            return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
+                                ctx.fillStyle = "black";
+                                (redactions[i] || []).forEach(function (rect) {
+                                    ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+                                });
+
+                                const imgData = canvas.toDataURL("image/png");
+                                return { imgData, i };
+                            });
+                        })
+                    );
+                }
+
+                Promise.all(pagePromises).then(function (pageData) {
+                    pageData.forEach(({ imgData, i }) => {
+                        pdf.addImage(imgData, "PNG", 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+                        if (i < pdfDoc.numPages) {
+                            pdf.addPage();
+                        }
+                    });
+
+                    const pdfBlob = pdf.output("blob");
+                    const url = URL.createObjectURL(pdfBlob);
+                    downloadBtn.href = url;
+                    downloadBtn.disabled = false; // Enable download after saving
+                });
+            });
         });
     </script>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
